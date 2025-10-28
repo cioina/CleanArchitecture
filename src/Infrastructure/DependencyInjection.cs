@@ -1,13 +1,20 @@
-﻿using CleanArchitecture.Application.Common.Interfaces;
+﻿using System.Security.Claims;
+using System.Text;
+using CleanArchitecture.Application;
+using CleanArchitecture.Application.Common.Interfaces;
 using CleanArchitecture.Domain.Constants;
 using CleanArchitecture.Infrastructure.Data;
 using CleanArchitecture.Infrastructure.Data.Interceptors;
 using CleanArchitecture.Infrastructure.Identity;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 
 namespace Microsoft.Extensions.DependencyInjection;
 
@@ -47,16 +54,54 @@ public static class DependencyInjection
         builder.Services.AddScoped<ApplicationDbContextInitialiser>();
 
 #if (UseApiOnly)
+
+        var applicationSettings = builder.Configuration.GetSection(nameof(ApplicationSettings));
+
         builder.Services.AddAuthentication()
             .AddBearerToken(IdentityConstants.BearerScheme);
 
         builder.Services.AddAuthorizationBuilder();
 
         builder.Services
-            .AddIdentityCore<ApplicationUser>()
-            .AddRoles<IdentityRole>()
+             //.AddIdentityCore<ApplicationUser>()
+             //.AddRoles<IdentityRole>()
+            .AddIdentity<ApplicationUser, IdentityRole>()
             .AddEntityFrameworkStores<ApplicationDbContext>()
             .AddApiEndpoints();
+
+        builder.Services
+            .TryAddEnumerable(ServiceDescriptor.Singleton<IPostConfigureOptions<JwtBearerOptions>, JwtBearerPostConfigureOptions>());
+
+        builder.Services
+             .AddAuthentication()
+            .AddScheme<JwtBearerOptions, JwtBearerHandler>(JwtBearerDefaults.AuthenticationScheme, bearer =>
+            {
+                bearer.RequireHttpsMetadata = false;
+                bearer.SaveToken = false;
+
+                bearer.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuerSigningKey = true,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(
+                        applicationSettings.GetValue<string>(nameof(ApplicationSettings.SecurityTokenDescriptorKey))!.PadRight((256 / 8), '\0'))),
+                    ValidateIssuer = false,
+                    ValidateAudience = false,
+
+                    RequireExpirationTime = true,
+                    ValidateLifetime = true,
+                    ClockSkew = TimeSpan.Zero,
+                };
+            });
+
+        builder.Services
+            .AddAuthorizationBuilder()
+            .AddPolicy(JwtBearerDefaults.AuthenticationScheme, builder =>
+            {
+                builder
+                 .RequireAuthenticatedUser()
+                 .RequireClaim(ClaimTypes.NameIdentifier)
+                 .RequireRole(Roles.Administrator);
+            });
 #else
         builder.Services
             .AddDefaultIdentity<ApplicationUser>()

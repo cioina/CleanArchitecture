@@ -30,7 +30,6 @@ public static class DependencyInjection
 #if (!UseApiOnly)
         builder.Services.AddRazorPages();
 #endif
-
         // Customise default API behaviour
         builder.Services.Configure<ApiBehaviorOptions>(options =>
             options.SuppressModelStateInvalidFilter = true);
@@ -43,12 +42,20 @@ public static class DependencyInjection
 
 #if (UseApiOnly)
             // Add JWT
-            configure.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
+            //configure.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme
+            //{
+            //    Type = OpenApiSecuritySchemeType.ApiKey,
+            //    Name = "Authorization",
+            //    In = OpenApiSecurityApiKeyLocation.Header,
+            //    Description = "Type into the textbox: Bearer {your JWT token}."
+            //});
+            configure.AddSecurity("JWT", Enumerable.Empty<string>(), new OpenApiSecurityScheme()
             {
-                Type = OpenApiSecuritySchemeType.ApiKey,
+                Scheme = "bearer",
+                Description = "Authorization:Bearer {your JWT token}<br/><b>:/Base_Manage/Home/SubmitLogin</b>",
                 Name = "Authorization",
                 In = OpenApiSecurityApiKeyLocation.Header,
-                Description = "Type into the textbox: Bearer {your JWT token}."
+                Type = OpenApiSecuritySchemeType.Http
             });
 
             configure.OperationProcessors.Add(new AspNetCoreOperationSecurityScopeProcessor("JWT"));
