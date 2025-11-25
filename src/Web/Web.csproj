@@ -11,6 +11,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Update="@(Content)">
+      <Visible Condition="'%(NuGetItemType)' == 'Content'">false</Visible>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Application\Application.csproj" />
     <ProjectReference Include="..\Infrastructure\Infrastructure.csproj" />
     <!--#if(UseAspire)-->
